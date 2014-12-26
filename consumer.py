@@ -16,13 +16,24 @@ NAMESPACES = {'dc': 'http://purl.org/dc/elements/1.1/',
             'ns0': 'http://www.openarchives.org/OAI/2.0/',
             'arch': 'http://dtd.nlm.nih.gov/2.0/xsd/archivearticle'}
 
+
+def copy_to_unicode(element):
+
+    encoding = record_encoding or DEFAULT_ENCODING
+    element = ''.join(element)
+    if isinstance(element, unicode):
+        return element
+    else:
+        return unicode(element, encoding=encoding)
+
+
 def consume(days_back=0):
     start_date = TODAY - timedelta(days_back)
     base_url = 'http://www.pubmedcentral.nih.gov/oai/oai.cgi?verb=ListRecords' 
     oai_dc_request = base_url + '&metadataPrefix=oai_dc&from={}'.format(str(start_date)) 
 
     # just for testing
-    #print 'oai_dc request: ' + oai_dc_request
+    print 'oai_dc request: ' + oai_dc_request
 
     oai_records = get_records(oai_dc_request)
     records = oai_records
