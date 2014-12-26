@@ -9,12 +9,12 @@ from scrapi_tools import lint
 from scrapi_tools.document import RawDocument, NormalizedDocument
 
 TODAY = date.today()
-NAME = "pubmedcentraloai"
+NAME = "pubmed"
 
-NAMESPACES = {'dc': 'http://purl.org/dc/elements/1.1/', 
-            'oai_dc': 'http://www.openarchives.org/OAI/2.0/',
-            'ns0': 'http://www.openarchives.org/OAI/2.0/',
-            'arch': 'http://dtd.nlm.nih.gov/2.0/xsd/archivearticle'}
+NAMESPACES = {'dc': 'http://purl.org/dc/elements/1.1/',
+              'oai_dc': 'http://www.openarchives.org/OAI/2.0/',
+              'ns0': 'http://www.openarchives.org/OAI/2.0/',
+              'arch': 'http://dtd.nlm.nih.gov/2.0/xsd/archivearticle'}
 
 
 def copy_to_unicode(element):
@@ -29,8 +29,9 @@ def copy_to_unicode(element):
 
 def consume(days_back=0):
     start_date = TODAY - timedelta(days_back)
-    base_url = 'http://www.pubmedcentral.nih.gov/oai/oai.cgi?verb=ListRecords' 
-    oai_dc_request = base_url + '&metadataPrefix=oai_dc&from={}'.format(str(start_date)) 
+    base_url = 'http://www.pubmedcentral.nih.gov/oai/oai.cgi?verb=ListRecords'
+    oai_dc_request = base_url + \
+        '&metadataPrefix=oai_dc&from={}'.format(str(start_date))
 
     # just for testing
     print 'oai_dc request: ' + oai_dc_request
@@ -41,19 +42,21 @@ def consume(days_back=0):
 
     xml_list = []
     for record in records:
-        ## TODO: make lack of contributors continue the loop
-        contributors = record.xpath('//dc:creator/node()', namespaces=NAMESPACES) #changed
+        # TODO: make lack of contributors continue the loop
+        contributors = record.xpath(
+            '//dc:creator/node()', namespaces=NAMESPACES)  # changed
         if not contributors:
             continue
-        doc_id = record.xpath('ns0:header/ns0:identifier/node()', namespaces=NAMESPACES)[0]
+        doc_id = record.xpath(
+            'ns0:header/ns0:identifier/node()', namespaces=NAMESPACES)[0]
         record = etree.tostring(record)
         record = '<?xml version="1.0" encoding="UTF-8"?>\n' + record
         xml_list.append(RawDocument({
-                    'doc': record,
-                    'source': NAME,
-                    'doc_id': doc_id,
-                    'filetype': 'xml'
-                }))
+            'doc': record,
+            'source': NAME,
+            'doc_id': doc_id,
+            'filetype': 'xml'
+        }))
 
     return xml_list
 
@@ -66,11 +69,12 @@ def get_records(url):
 
     if len(token) == 1:
         time.sleep(0.5)
-        base_url = 'http://www.pubmedcentral.nih.gov/oai/oai.cgi?verb=ListRecords&resumptionToken=' 
+        base_url = 'http://www.pubmedcentral.nih.gov/oai/oai.cgi?verb=ListRecords&resumptionToken='
         url = base_url + token[0]
         records += get_records(url)
 
     return records
+
 
 def get_title(doc):
     title = doc.xpath('//dc:title', namespaces=NAMESPACES)
@@ -83,13 +87,18 @@ def get_title(doc):
     title = title.strip()
     return title
 
+
 def get_properties(doc, metadata_type):
     properties = {}
-    properties['type'] = (doc.xpath('//dc:type/node()', namespaces=NAMESPACES) or [''])[0]
-    properties['language'] = (doc.xpath('//dc:language/node()', namespaces=NAMESPACES) or [''])[0]
-    properties['rights'] = (doc.xpath('//dc:rights/node()', namespaces=NAMESPACES) or [''])[0]
- 
+    properties['type'] = (
+        doc.xpath('//dc:type/node()', namespaces=NAMESPACES) or [''])[0]
+    properties['language'] = (
+        doc.xpath('//dc:language/node()', namespaces=NAMESPACES) or [''])[0]
+    properties['rights'] = (
+        doc.xpath('//dc:rights/node()', namespaces=NAMESPACES) or [''])[0]
+
     return properties
+
 
 def normalize(raw_doc, timestamp):
     raw_doc = raw_doc.get('doc')
@@ -107,13 +116,15 @@ def normalize(raw_doc, timestamp):
     contributors = doc.xpath('//dc:creator/node()', namespaces=NAMESPACES)
 
     contributor_list = []
-    for contributor in contributors: 
+    for contributor in contributors:
         if type(contributor) == tuple:
-            contributor_list.append({'full_name': contributor[0], 'email':contributor[1]})
+            contributor_list.append(
+                {'full_name': contributor[0], 'email': contributor[1]})
         else:
-            contributor_list.append({'full_name': contributor, 'email':''})
+            contributor_list.append({'full_name': contributor, 'email': ''})
 
-    contributor_list = contributor_list or [{'full_name': 'no contributors', 'email': ''}]
+    contributor_list = contributor_list or [
+        {'full_name': 'no contributors', 'email': ''}]
 
     ## description ##
     description = doc.xpath('//dc:description/node()', namespaces=NAMESPACES)
@@ -122,13 +133,14 @@ def normalize(raw_doc, timestamp):
     except IndexError:
         description = 'No description available.'
 
-    ## id ##  
+    ## id ##
     id_url = ''
     id_doi = ''
     pmid = ''
-    service_id = doc.xpath('ns0:header/ns0:identifier/node()', namespaces=NAMESPACES)[0]
+    service_id = doc.xpath(
+        'ns0:header/ns0:identifier/node()', namespaces=NAMESPACES)[0]
     identifiers = doc.xpath('//dc:identifier/node()', namespaces=NAMESPACES)
-    if len(identifiers) > 1: # there are multiple identifiers
+    if len(identifiers) > 1:  # there are multiple identifiers
         id_url = identifiers[1]
         if id_url[:17] == 'http://dx.doi.org':
             id_doi = id_url[18:]
@@ -149,7 +161,7 @@ def normalize(raw_doc, timestamp):
     ## date created ##
     date_created = doc.xpath('//dc:date/node()', namespaces=NAMESPACES)[0]
 
-    normalized_dict = { 
+    normalized_dict = {
         'title': title,
         'contributors': contributor_list,
         'properties': properties,
@@ -163,6 +175,7 @@ def normalize(raw_doc, timestamp):
     }
 
     return NormalizedDocument(normalized_dict)
+
 
 if __name__ == '__main__':
     print(lint(consume, normalize))
