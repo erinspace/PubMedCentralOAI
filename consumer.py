@@ -1,12 +1,21 @@
 ''' Consumer for PubMed Central
     Takes in both metadata in dc and pmc formats '''
 
-from lxml import etree
-from datetime import date, timedelta
-import requests
+from __future__ import unicode_literals
+
+import os
 import time
-from scrapi_tools import lint
-from scrapi_tools.document import RawDocument, NormalizedDocument
+from lxml import etree
+from datetime import date, timedelta, datetime
+
+import requests
+
+from dateutil.parser import *
+
+from nameparser import HumanName
+
+from scrapi.linter import lint
+from scrapi.linter.document import RawDocument, NormalizedDocument
 
 TODAY = date.today()
 NAME = "pubmed"
@@ -18,6 +27,9 @@ NAMESPACES = {'dc': 'http://purl.org/dc/elements/1.1/',
               'ns0': 'http://www.openarchives.org/OAI/2.0/',
               'arch': 'http://dtd.nlm.nih.gov/2.0/xsd/archivearticle'}
 
+DEFAULT_ENCODING = 'utf-8'
+
+record_encoding = None
 
 def copy_to_unicode(element):
 
@@ -33,6 +45,7 @@ def consume(days_back=0):
     start_date = TODAY - timedelta(days_back)
     oai_dc_request = OAI_DC_BASE_URL + \
         '&metadataPrefix=oai_dc&from={}'.format(str(start_date))
+    record_encoding = requests.get(oai_dc_request).encoding
 
     # just for testing
     print 'oai_dc request: ' + oai_dc_request
@@ -50,12 +63,11 @@ def consume(days_back=0):
             continue
         doc_id = record.xpath(
             'ns0:header/ns0:identifier/node()', namespaces=NAMESPACES)[0]
-        record = etree.tostring(record)
-        record = '<?xml version="1.0" encoding="UTF-8"?>\n' + record
+        record = etree.tostring(record, encoding=record_encoding)
         xml_list.append(RawDocument({
             'doc': record,
             'source': NAME,
-            'doc_id': doc_id,
+            'docID': copy_to_unicode(doc_id),
             'filetype': 'xml'
         }))
 
@@ -101,7 +113,7 @@ def get_properties(doc, metadata_type):
     return properties
 
 
-def normalize(raw_doc, timestamp):
+def normalize(raw_doc):
     raw_doc = raw_doc.get('doc')
     doc = etree.XML(raw_doc)
 
@@ -171,8 +183,7 @@ def normalize(raw_doc, timestamp):
         'id': doc_ids,
         'tags': tags,
         'source': NAME,
-        'date_created': date_created,
-        'timestamp': str(timestamp)
+        'dateCreated': date_created
     }
 
     return NormalizedDocument(normalized_dict)
