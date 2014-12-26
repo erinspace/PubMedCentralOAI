@@ -89,7 +89,7 @@ def get_records(url):
     return records
 
 
-def get_title(doc):
+def get_title(record):
     title = doc.xpath('//dc:title', namespaces=NAMESPACES)
 
     if isinstance(title, list):
@@ -101,7 +101,7 @@ def get_title(doc):
     return title
 
 
-def get_properties(doc, metadata_type):
+def get_properties(record):
     properties = {}
     properties['type'] = (
         doc.xpath('//dc:type/node()', namespaces=NAMESPACES) or [''])[0]
@@ -113,40 +113,25 @@ def get_properties(doc, metadata_type):
     return properties
 
 
-def normalize(raw_doc):
-    raw_doc = raw_doc.get('doc')
-    doc = etree.XML(raw_doc)
-
-    metadata_type = 'oai_dc'
-
-    # properties #
-    properties = get_properties(doc, metadata_type)
-
-    ## title ##
-    title = get_title(doc)
-
-    ## contributors ##
-    contributors = doc.xpath('//dc:creator/node()', namespaces=NAMESPACES)
-
+def get_contributors(record):
+    contributors = record.xpath('//dc:creator/node()', namespaces=NAMESPACES)
     contributor_list = []
-    for contributor in contributors:
-        if type(contributor) == tuple:
-            contributor_list.append(
-                {'full_name': contributor[0], 'email': contributor[1]})
-        else:
-            contributor_list.append({'full_name': contributor, 'email': ''})
+    for person in contributors:
+        name = HumanName(person)
+        contributor = {
+            'prefix': name.title,
+            'given': name.first,
+            'middle': name.middle,
+            'family': name.last,
+            'suffix': name.suffix,
+            'email': '',
+            'ORCID': '',
+        }
+        contributor_list.append(contributor)
+    return contributor_list
 
-    contributor_list = contributor_list or [
-        {'full_name': 'no contributors', 'email': ''}]
 
-    ## description ##
-    description = doc.xpath('//dc:description/node()', namespaces=NAMESPACES)
-    try:
-        description = description[0]
-    except IndexError:
-        description = 'No description available.'
-
-    ## id ##
+def get_ids(record):
     id_url = ''
     id_doi = ''
     pmid = ''
@@ -166,24 +151,37 @@ def normalize(raw_doc):
     if len(identifiers) == 1:
         raise Exception("No url provided!")
 
-    doc_ids = {'url': id_url, 'doi': id_doi, 'service_id': service_id}
+    return {'url': id_url, 'doi': id_doi, 'service_id': service_id}
 
-    ## tags ##
-    tags = doc.xpath('//dc:subject/node()', namespaces=NAMESPACES)
+def get_description(record):
+    return (doc.xpath('//dc:description/node()', namespaces=NAMESPACES) or [''])[0]
 
-    ## date created ##
-    date_created = doc.xpath('//dc:date/node()', namespaces=NAMESPACES)[0]
+
+def get_tags(record):
+    return doc.xpath('//dc:subject/node()', namespaces=NAMESPACES)
+
+
+def get_date_updated(record):
+     doc.xpath('//dc:date/node()', namespaces=NAMESPACES)[0]
+
+
+def get_date_created(record):
+    doc.xpath('//dc:date/node()', namespaces=NAMESPACES)[0]
+
+
+def normalize(raw_doc):
+    raw_doc = raw_doc.get('doc')
+    record = etree.XML(raw_doc)
 
     normalized_dict = {
-        'title': title,
-        'contributors': contributor_list,
-        'properties': properties,
-        'description': description,
-        'meta': {},
-        'id': doc_ids,
+        'title': get_title(record),
+        'contributors': get_contributors(record),
+        'properties': get_properties(record),
+        'description': get_description(record),
+        'id': get_ids(record),
         'tags': tags,
         'source': NAME,
-        'dateCreated': date_created
+        'dateCreated': get_date_created(record)
     }
 
     return NormalizedDocument(normalized_dict)
