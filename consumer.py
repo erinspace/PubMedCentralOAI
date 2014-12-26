@@ -27,18 +27,17 @@ NAMESPACES = {'dc': 'http://purl.org/dc/elements/1.1/',
               'ns0': 'http://www.openarchives.org/OAI/2.0/',
               'arch': 'http://dtd.nlm.nih.gov/2.0/xsd/archivearticle'}
 
-DEFAULT_ENCODING = 'utf-8'
+DEFAULT_ENCODING = 'ISO-8859-1'
 
 record_encoding = None
 
-def copy_to_unicode(element):
+def copy_to_unicode(element, record_encoding=DEFAULT_ENCODING):
 
-    encoding = record_encoding or DEFAULT_ENCODING
     element = ''.join(element)
     if isinstance(element, unicode):
         return element
     else:
-        return unicode(element, encoding=encoding)
+        return unicode(element, encoding=record_encoding)
 
 
 def consume(days_back=0):
@@ -67,7 +66,7 @@ def consume(days_back=0):
         xml_list.append(RawDocument({
             'doc': record,
             'source': NAME,
-            'docID': copy_to_unicode(doc_id),
+            'docID': copy_to_unicode(doc_id, record_encoding),
             'filetype': 'xml'
         }))
 
@@ -90,7 +89,7 @@ def get_records(url):
 
 
 def get_title(record):
-    title = doc.xpath('//dc:title', namespaces=NAMESPACES)
+    title = record.xpath('//dc:title', namespaces=NAMESPACES)
 
     if isinstance(title, list):
         title = title[0]
@@ -98,17 +97,17 @@ def get_title(record):
             title = title.text
 
     title = title.strip()
-    return title
+    return copy_to_unicode(title)
 
 
 def get_properties(record):
     properties = {}
     properties['type'] = (
-        doc.xpath('//dc:type/node()', namespaces=NAMESPACES) or [''])[0]
+        record.xpath('//dc:type/node()', namespaces=NAMESPACES) or [''])[0]
     properties['language'] = (
-        doc.xpath('//dc:language/node()', namespaces=NAMESPACES) or [''])[0]
+        record.xpath('//dc:language/node()', namespaces=NAMESPACES) or [''])[0]
     properties['rights'] = (
-        doc.xpath('//dc:rights/node()', namespaces=NAMESPACES) or [''])[0]
+        record.xpath('//dc:rights/node()', namespaces=NAMESPACES) or [''])[0]
 
     return properties
 
@@ -135,9 +134,9 @@ def get_ids(record):
     id_url = ''
     id_doi = ''
     pmid = ''
-    service_id = doc.xpath(
+    service_id = record.xpath(
         'ns0:header/ns0:identifier/node()', namespaces=NAMESPACES)[0]
-    identifiers = doc.xpath('//dc:identifier/node()', namespaces=NAMESPACES)
+    identifiers = record.xpath('//dc:identifier/node()', namespaces=NAMESPACES)
     if len(identifiers) > 1:  # there are multiple identifiers
         id_url = identifiers[1]
         if id_url[:17] == 'http://dx.doi.org':
@@ -151,22 +150,29 @@ def get_ids(record):
     if len(identifiers) == 1:
         raise Exception("No url provided!")
 
-    return {'url': id_url, 'doi': id_doi, 'service_id': service_id}
+    return {
+        'url': copy_to_unicode(id_url), 
+        'doi': copy_to_unicode(id_doi), 
+        'serviceID': copy_to_unicode(service_id)
+    }
 
 def get_description(record):
-    return (doc.xpath('//dc:description/node()', namespaces=NAMESPACES) or [''])[0]
-
+    description = (record.xpath('//dc:description/node()', namespaces=NAMESPACES) or [''])[0]
+    return copy_to_unicode(description)
 
 def get_tags(record):
-    return doc.xpath('//dc:subject/node()', namespaces=NAMESPACES)
+    tags = record.xpath('//dc:subject/node()', namespaces=NAMESPACES)
+    return [copy_to_unicode(tag.lower()) for tag in tags]
 
 
 def get_date_updated(record):
-     doc.xpath('//dc:date/node()', namespaces=NAMESPACES)[0]
+    date_updated = record.xpath('//dc:date/node()', namespaces=NAMESPACES)[0]
+    return copy_to_unicode(date_updated)
 
 
 def get_date_created(record):
-    doc.xpath('//dc:date/node()', namespaces=NAMESPACES)[0]
+    date_created = record.xpath('//dc:date/node()', namespaces=NAMESPACES)[0]
+    return copy_to_unicode(date_created)
 
 
 def normalize(raw_doc):
@@ -179,9 +185,10 @@ def normalize(raw_doc):
         'properties': get_properties(record),
         'description': get_description(record),
         'id': get_ids(record),
-        'tags': tags,
+        'tags': get_tags(record),
         'source': NAME,
-        'dateCreated': get_date_created(record)
+        'dateCreated': get_date_created(record),
+        'dateUpdated': get_date_updated(record)
     }
 
     return NormalizedDocument(normalized_dict)
