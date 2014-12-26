@@ -11,6 +11,8 @@ from scrapi_tools.document import RawDocument, NormalizedDocument
 TODAY = date.today()
 NAME = "pubmed"
 
+OAI_DC_BASE_URL = 'http://www.pubmedcentral.nih.gov/oai/oai.cgi?verb=ListRecords'
+
 NAMESPACES = {'dc': 'http://purl.org/dc/elements/1.1/',
               'oai_dc': 'http://www.openarchives.org/OAI/2.0/',
               'ns0': 'http://www.openarchives.org/OAI/2.0/',
@@ -29,8 +31,7 @@ def copy_to_unicode(element):
 
 def consume(days_back=0):
     start_date = TODAY - timedelta(days_back)
-    base_url = 'http://www.pubmedcentral.nih.gov/oai/oai.cgi?verb=ListRecords'
-    oai_dc_request = base_url + \
+    oai_dc_request = OAI_DC_BASE_URL + \
         '&metadataPrefix=oai_dc&from={}'.format(str(start_date))
 
     # just for testing
@@ -69,7 +70,7 @@ def get_records(url):
 
     if len(token) == 1:
         time.sleep(0.5)
-        base_url = 'http://www.pubmedcentral.nih.gov/oai/oai.cgi?verb=ListRecords&resumptionToken='
+        base_url = OAI_DC_BASE_URL + '&resumptionToken='
         url = base_url + token[0]
         records += get_records(url)
 
