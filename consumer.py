@@ -29,15 +29,17 @@ NAMESPACES = {'dc': 'http://purl.org/dc/elements/1.1/',
 
 DEFAULT_ENCODING = 'ISO-8859-1'
 
+OUTPUT_ENCODING = 'utf8'
+
 record_encoding = None
 
-def copy_to_unicode(element, record_encoding=DEFAULT_ENCODING):
+def copy_to_unicode(element):
 
     element = ''.join(element)
     if isinstance(element, unicode):
         return element
     else:
-        return unicode(element, encoding=record_encoding)
+        return unicode(element, encoding=OUTPUT_ENCODING)
 
 
 def consume(days_back=0):
@@ -66,7 +68,7 @@ def consume(days_back=0):
         xml_list.append(RawDocument({
             'doc': record,
             'source': NAME,
-            'docID': copy_to_unicode(doc_id, record_encoding),
+            'docID': copy_to_unicode(doc_id),
             'filetype': 'xml'
         }))
 
@@ -137,18 +139,15 @@ def get_ids(record):
     service_id = record.xpath(
         'ns0:header/ns0:identifier/node()', namespaces=NAMESPACES)[0]
     identifiers = record.xpath('//dc:identifier/node()', namespaces=NAMESPACES)
-    if len(identifiers) > 1:  # there are multiple identifiers
-        id_url = identifiers[1]
-        if id_url[:17] == 'http://dx.doi.org':
-            id_doi = id_url[18:]
-        else:
-            pmid = id_url[-8:]
+    
+    for item in identifiers:
+        if 'http://dx.doi.org' in item:
+            id_doi = item.replace('http://dx.doi.org/', '')
+        if 'http://' in item and 'articles/PMC' not in item and 'dx.doi' not in item:
+            id_url = item
 
-    if len(identifiers) == 3:  # there are exactly three identifiers
-        id_doi = identifiers[2][18:]
-
-    if len(identifiers) == 1:
-        raise Exception("No url provided!")
+    if id_url == '' and id_doi:
+        id_url = 'http://dx.doi.org/' + id_doi
 
     return {
         'url': copy_to_unicode(id_url), 
