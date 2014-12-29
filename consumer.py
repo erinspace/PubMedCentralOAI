@@ -109,7 +109,7 @@ def get_properties(record):
     properties['rights'] = (
         record.xpath('//dc:rights/node()', namespaces=NAMESPACES) or [''])[0]
 
-    return properties
+    return {key: copy_to_unicode(value) for key, value in properties.iteritems()}
 
 
 def get_contributors(record):
