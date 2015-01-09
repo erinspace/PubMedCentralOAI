@@ -3,15 +3,13 @@
 
 from __future__ import unicode_literals
 
-import os
 import time
 from lxml import etree
-from datetime import date, timedelta, datetime
+from datetime import date, timedelta
+from dateutil.parser import parse
+
 
 import requests
-
-from dateutil.parser import *
-
 from nameparser import HumanName
 
 from scrapi.linter import lint
@@ -33,8 +31,8 @@ OUTPUT_ENCODING = 'utf8'
 
 record_encoding = None
 
-def copy_to_unicode(element):
 
+def copy_to_unicode(element):
     element = ''.join(element)
     if isinstance(element, unicode):
         return element
@@ -150,14 +148,16 @@ def get_ids(record):
         id_url = 'http://dx.doi.org/' + id_doi
 
     return {
-        'url': copy_to_unicode(id_url), 
-        'doi': copy_to_unicode(id_doi), 
+        'url': copy_to_unicode(id_url),
+        'doi': copy_to_unicode(id_doi),
         'serviceID': copy_to_unicode(service_id)
     }
+
 
 def get_description(record):
     description = (record.xpath('//dc:description/node()', namespaces=NAMESPACES) or [''])[0]
     return copy_to_unicode(description)
+
 
 def get_tags(record):
     tags = record.xpath('//dc:subject/node()', namespaces=NAMESPACES)
@@ -166,11 +166,13 @@ def get_tags(record):
 
 def get_date_updated(record):
     date_updated = record.xpath('//dc:date/node()', namespaces=NAMESPACES)[0]
+    date_updated = parse(date_updated).isoformat()
     return copy_to_unicode(date_updated)
 
 
 def get_date_created(record):
     date_created = record.xpath('//dc:date/node()', namespaces=NAMESPACES)[0]
+    date_created = parse(date_created).isoformat()
     return copy_to_unicode(date_created)
 
 
