@@ -74,6 +74,7 @@ def consume(days_back=0):
 
 
 def get_records(url):
+    print url
     data = requests.get(url)
     doc = etree.XML(data.content)
     records = doc.xpath('//ns0:record', namespaces=NAMESPACES)
@@ -137,7 +138,7 @@ def get_ids(record):
     service_id = record.xpath(
         'ns0:header/ns0:identifier/node()', namespaces=NAMESPACES)[0]
     identifiers = record.xpath('//dc:identifier/node()', namespaces=NAMESPACES)
-    
+
     for item in identifiers:
         if 'http://dx.doi.org' in item:
             id_doi = item.replace('http://dx.doi.org/', '')
@@ -165,7 +166,7 @@ def get_tags(record):
 
 
 def get_date_updated(record):
-    date_updated = record.xpath('//dc:date/node()', namespaces=NAMESPACES)[0]
+    date_updated = record.xpath('//ns0:header/ns0:datestamp/node()', namespaces=NAMESPACES)[0]
     date_updated = parse(date_updated).isoformat()
     return copy_to_unicode(date_updated)
 
